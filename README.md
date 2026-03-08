@@ -1,0 +1,1 @@
+# booksy-ai-assistant

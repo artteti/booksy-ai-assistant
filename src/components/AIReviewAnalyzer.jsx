@@ -5,69 +5,58 @@ const AIReviewAnalyzer = () => {
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const analyzeReview = async () => {
+  const analyzeWithAI = async () => {
     setLoading(true);
+    try {
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_HF_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inputs: `Analyze this customer review: "${review}"`,
+          }),
+        },
+      );
 
-    setTimeout(() => {
-      const lowerReview = review.toLowerCase();
-      let action = "No urgent action needed";
-      let sentiment = "Neutral";
+      if (!response.ok) throw new Error("API call failed");
 
-      if (lowerReview.includes("wait") || lowerReview.includes("slow")) {
-        sentiment = "Negative (Time management)";
-        action = "Create 15% discount coupon for next visit";
-      } else if (
-        lowerReview.includes("broken") ||
-        lowerReview.includes("app")
-      ) {
-        sentiment = "Technical Issue";
-        action = "Alert Technical Support Team";
-      } else if (
-        lowerReview.includes("love") ||
-        lowerReview.includes("great")
-      ) {
-        sentiment = "Positive";
-        action = "Request permission to share on Instagram";
-      }
-
-      setAnalysis({
-        sentiment,
-        suggestedReply: `Based on the ${sentiment} tone, I recommend this action.`,
-        actionItem: action,
-      });
+      const data = await response.json();
+      setAnalysis(data[0].generated_text);
+    } catch (err) {
+      // Fallback mechanism: providing a graceful degradation if AI service is unreachable
+      console.warn("AI service unavailable, activating fallback logic...");
+      setAnalysis(
+        `[AI Fallback]: Thank you for your feedback! We appreciate your input and our team is already working on improving your experience.`,
+      );
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto bg-white rounded-xl shadow-md space-y-4 border border-gray-200">
-      <h2 className="text-xl font-bold text-gray-800">Booksy AI Assistant</h2>
+    <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg">
+      <h2 className="text-xl font-bold mb-4">Booksy AI Assistant</h2>
       <textarea
-        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-pink-500"
-        placeholder="Paste a customer review here..."
-        rows="4"
+        className="w-full border p-2 rounded mb-4"
+        placeholder="Enter customer review here..."
         value={review}
         onChange={(e) => setReview(e.target.value)}
       />
       <button
-        onClick={analyzeReview}
-        disabled={!review || loading}
-        className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 disabled:bg-gray-400"
+        onClick={analyzeWithAI}
+        disabled={loading}
+        className="bg-black text-white px-4 py-2 rounded"
       >
-        {loading ? "AI is thinking..." : "Analyze with AI Agent"}
+        {loading ? "Analyzing..." : "Analyze Review"}
       </button>
 
       {analysis && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border-l-4 border-pink-500">
-          <p>
-            <strong>Sentiment:</strong> {analysis.sentiment}
-          </p>
-          <p className="mt-2">
-            <strong>Drafted Reply:</strong> {analysis.suggestedReply}
-          </p>
-          <p className="mt-2 text-sm text-blue-600 font-mono">
-            <strong>Agent Action:</strong> {analysis.actionItem}
-          </p>
+        <div className="mt-4 p-4 bg-gray-50 border rounded text-sm text-gray-700">
+          <strong>Result:</strong> {analysis}
         </div>
       )}
     </div>
